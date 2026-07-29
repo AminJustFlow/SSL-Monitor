@@ -1,0 +1,2 @@
+import { notFound } from "next/navigation"; import { db } from "@/lib/database"; import { csrfToken } from "@/lib/auth/csrf"; import { WebsiteForm } from "@/components/website-form"; import { updateWebsite } from "../../actions";
+export default async function Edit({params}:{params:Promise<{id:string}>}){const {id}=await params;const w=await db.website.findUnique({where:{id}});if(!w)notFound();return <><h1>Edit {w.websiteName}</h1><WebsiteForm website={w} csrf={await csrfToken()} action={updateWebsite.bind(null,id)}/></>}

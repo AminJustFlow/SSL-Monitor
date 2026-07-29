@@ -1,0 +1,3 @@
+import { NextResponse } from "next/server"; import { db } from "@/lib/database";
+export const dynamic="force-dynamic";
+export async function GET(){let database="ok";try{await db.$queryRaw`SELECT 1`;}catch{database="unavailable";}const latest=database==="ok"?await db.monitoringRun.findFirst({where:{triggerType:"SCHEDULED"},orderBy:{startedAt:"desc"},select:{status:true,completedAt:true}}).catch(()=>null):null;return NextResponse.json({status:database==="ok"?"ok":"degraded",database,timestamp:new Date().toISOString(),version:process.env.npm_package_version??"1.0.0",lastSuccessfulScheduledRun:latest?.status==="COMPLETED"?latest.completedAt:null,mostRecentRunFailed:latest?.status==="FAILED"},{status:database==="ok"?200:503});}

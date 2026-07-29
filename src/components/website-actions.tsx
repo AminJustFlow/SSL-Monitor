@@ -1,0 +1,3 @@
+"use client";
+import { useTransition } from "react"; import { checkNow, deleteWebsite, toggleWebsite } from "@/app/(protected)/websites/actions";
+export function WebsiteActions({id,enabled,csrf}:{id:string;enabled:boolean;csrf:string}){const [pending,start]=useTransition();return <span className="actions"><button disabled={pending} onClick={()=>start(()=>checkNow(id,csrf))}>Check now</button><button disabled={pending} onClick={()=>start(()=>toggleWebsite(id,csrf))}>{enabled?"Pause":"Resume"}</button><button className="danger" disabled={pending} onClick={()=>confirm("Delete this website and all history?")&&start(()=>deleteWebsite(id,csrf))}>Delete</button></span>}

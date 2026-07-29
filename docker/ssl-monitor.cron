@@ -1,0 +1,4 @@
+# Install with: crontab docker/ssl-monitor.cron
+# CRON_TZ is supported by common cron implementations; verify on your distribution.
+CRON_TZ=America/New_York
+0 7 * * * cd /opt/ssl-monitor && /usr/bin/npm run monitor:all >> /var/log/ssl-monitor.log 2>&1

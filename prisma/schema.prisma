@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+}
+enum CheckType {
+  PUBLIC
+  ORIGIN
+}
+enum CheckStatus {
+  HEALTHY
+  WARNING
+  URGENT
+  CRITICAL
+  EXPIRED
+  INVALID
+  UNAVAILABLE
+  UNKNOWN
+}
+enum HttpStatus {
+  AVAILABLE
+  UNAVAILABLE
+  CLOUDFLARE_ERROR
+  UNKNOWN
+}
+enum AlertDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+enum MonitoringRunStatus {
+  RUNNING
+  COMPLETED
+  PARTIAL
+  FAILED
+  SKIPPED
+}
+enum TriggerType {
+  SCHEDULED
+  MANUAL
+}
+
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  passwordHash String
+  name String
+  role Role @default(ADMIN)
+  enabled Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastLoginAt DateTime?
+}
+
+model Website {
+  id String @id @default(cuid())
+  clientName String
+  websiteName String
+  publicUrl String
+  hostname String
+  port Int @default(443)
+  enabled Boolean @default(true)
+  checkPublicCertificate Boolean @default(true)
+  checkHttp Boolean @default(true)
+  usesCloudflare Boolean @default(false)
+  checkOriginCertificate Boolean @default(false)
+  originConnectHost String?
+  originSniHostname String?
+  tlsTimeoutMs Int @default(10000)
+  httpTimeoutMs Int @default(15000)
+  hostingProvider String?
+  renewalMethod String?
+  responsibleParty String?
+  notes String?
+  alertRecipients String[]
+  alertThresholds Int[]
+  lastCheckedAt DateTime?
+  lastStatus CheckStatus @default(UNKNOWN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  certificateChecks CertificateCheck[]
+  httpChecks HttpCheck[]
+  alerts AlertEvent[]
+  @@index([enabled])
+  @@index([clientName])
+  @@index([lastStatus])
+}
+
+model CertificateCheck {
+  id String @id @default(cuid())
+  websiteId String
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  checkType CheckType
+  checkedAt DateTime @default(now())
+  success Boolean
+  certificatePresent Boolean
+  authorized Boolean
+  authorizationError String?
+  validFrom DateTime?
+  expiresAt DateTime?
+  daysRemaining Int?
+  issuer Json?
+  subject Json?
+  subjectAlternativeNames String[]
+  fingerprint String?
+  serialNumber String?
+  protocol String?
+  cipher String?
+  connectHost String
+  sniHostname String
+  durationMs Int
+  status CheckStatus
+  errorCode String?
+  errorMessage String?
+  alerts AlertEvent[]
+  @@index([websiteId, checkedAt(sort: Desc)])
+  @@index([status, checkedAt])
+  @@index([fingerprint])
+}
+
+model HttpCheck {
+  id String @id @default(cuid())
+  websiteId String
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  checkedAt DateTime @default(now())
+  success Boolean
+  statusCode Int?
+  finalUrl String?
+  responseTimeMs Int
+  redirectCount Int
+  status HttpStatus
+  errorCode String?
+  errorMessage String?
+  @@index([websiteId, checkedAt(sort: Desc)])
+  @@index([status, checkedAt])
+}
+
+model AlertEvent {
+  id String @id @default(cuid())
+  websiteId String
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  certificateCheckId String?
+  certificateCheck CertificateCheck? @relation(fields: [certificateCheckId], references: [id], onDelete: SetNull)
+  alertType String
+  threshold Int?
+  recipient String
+  subject String
+  deliveryStatus AlertDeliveryStatus @default(PENDING)
+  providerMessageId String?
+  errorMessage String?
+  dedupKey String @unique
+  createdAt DateTime @default(now())
+  sentAt DateTime?
+  @@index([websiteId, createdAt(sort: Desc)])
+}
+
+model MonitoringRun {
+  id String @id @default(cuid())
+  startedAt DateTime @default(now())
+  completedAt DateTime?
+  status MonitoringRunStatus @default(RUNNING)
+  websitesProcessed Int @default(0)
+  checksSuccessful Int @default(0)
+  checksFailed Int @default(0)
+  alertsSent Int @default(0)
+  errorMessage String?
+  triggerType TriggerType
+  @@index([startedAt(sort: Desc)])
+  @@index([status])
+}
