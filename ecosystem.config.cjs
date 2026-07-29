@@ -1,1 +1,1 @@
-module.exports={apps:[{name:"ssl-monitor-web",script:"node_modules/next/dist/bin/next",args:"start",cwd:__dirname,env:{NODE_ENV:"production"},max_memory_restart:"500M",time:true}]};
+module.exports={apps:[{name:"ssl-monitor-web",script:"node_modules/next/dist/bin/next",args:"start",cwd:__dirname,env:{NODE_ENV:"production",PORT:"3001",HOSTNAME:"127.0.0.1"},max_memory_restart:"500M",time:true}]};

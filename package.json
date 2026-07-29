@@ -12,9 +12,9 @@
     "test:e2e": "playwright test",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
-    "db:seed": "tsx prisma/seed.ts",
-    "monitor:all": "tsx src/cli/monitor-all.ts",
-    "monitor:website": "tsx src/cli/monitor-website.ts"
+    "db:seed": "tsx --env-file=.env prisma/seed.ts",
+    "monitor:all": "tsx --env-file=.env src/cli/monitor-all.ts",
+    "monitor:website": "tsx --env-file=.env src/cli/monitor-website.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.12.0",

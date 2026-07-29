@@ -1,12 +1,15 @@
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
-const NAME = "ssl_monitor_csrf";
+import { config } from "@/lib/config";
+
+const SESSION_COOKIE = "ssl_monitor_session";
+
 export async function csrfToken() {
-  const jar = await cookies(); let value = jar.get(NAME)?.value;
-  if (!value) { value = crypto.randomBytes(24).toString("hex"); jar.set(NAME, value, { httpOnly: true, sameSite: "strict", secure: process.env.NODE_ENV === "production", path: "/" }); }
-  return value;
+  const session = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (!session) throw new Error("Authentication required");
+  return crypto.createHmac("sha256", config().SESSION_SECRET).update(session).digest("hex");
 }
 export async function verifyCsrf(value: FormDataEntryValue | null) {
-  const expected = (await cookies()).get(NAME)?.value;
+  const expected = await csrfToken();
   if (!expected || typeof value !== "string" || value.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(value), Buffer.from(expected))) throw new Error("Invalid CSRF token");
 }
