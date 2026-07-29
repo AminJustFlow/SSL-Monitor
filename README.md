@@ -101,3 +101,15 @@ For non-Docker operation, install Node/PostgreSQL, run install/build/migrations/
 ## Security and limitations
 
 Deploy only behind HTTPS, rotate session/SMTP/database credentials, restrict the admin network where possible, monitor logs, and keep dependencies patched. The in-process login limiter is per application instance; multi-instance deployments should replace it with Redis or a database limiter. Manual checks currently complete in the server action, so aggressive timeouts are important. Alert events are deduplicated permanently per certificate fingerprint and event. History retention requires an external cleanup policy. DNS rebinding risk is reduced by validation, but Node's underlying connection can resolve again; high-assurance deployments should use an egress firewall or a pinned-address HTTP agent. The app does not automate certificate renewal.
+
+build process
+
+cd /opt/ssl-monitor
+git pull
+
+npm ci
+npm run db:seed
+npm test
+npm run typecheck
+npm run build
+sudo systemctl restart ssl-monitor

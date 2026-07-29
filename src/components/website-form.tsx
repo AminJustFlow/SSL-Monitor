@@ -1,3 +1,33 @@
 import type { Website } from "@prisma/client";
-export function WebsiteForm({website,csrf,action}:{website?:Website;csrf:string;action:(form:FormData)=>void|Promise<void>}){return <form action={action} className="grid panel"><input type="hidden" name="csrf" value={csrf}/><Field n="clientName" l="Client name" v={website?.clientName} req/><Field n="websiteName" l="Website name" v={website?.websiteName} req/><Field n="publicUrl" l="Public URL" v={website?.publicUrl??"https://"} req/><Field n="hostname" l="Hostname" v={website?.hostname} req/><Field n="port" l="TLS port" type="number" v={website?.port??443} req/><Check n="enabled" l="Monitoring enabled" v={website?.enabled??true}/><Check n="checkPublicCertificate" l="Check public certificate" v={website?.checkPublicCertificate??true}/><Check n="checkHttp" l="Check HTTP availability" v={website?.checkHttp??true}/><Check n="usesCloudflare" l="Uses Cloudflare" v={website?.usesCloudflare??false}/><Check n="checkOriginCertificate" l="Check origin certificate" v={website?.checkOriginCertificate??false}/><Field n="originConnectHost" l="Origin connection host or IP" v={website?.originConnectHost}/><Field n="originSniHostname" l="Origin SNI hostname" v={website?.originSniHostname}/><Field n="tlsTimeoutMs" l="TLS timeout (ms)" type="number" v={website?.tlsTimeoutMs??10000}/><Field n="httpTimeoutMs" l="HTTP timeout (ms)" type="number" v={website?.httpTimeoutMs??15000}/><Field n="alertRecipients" l="Alert recipients (comma-separated)" v={website?.alertRecipients.join(", ")}/><Field n="alertThresholds" l="Alert thresholds (comma-separated)" v={website?.alertThresholds.join(", ")??"30,14,7,3,1,0"}/><Field n="hostingProvider" l="Hosting provider" v={website?.hostingProvider}/><Field n="renewalMethod" l="Renewal method" v={website?.renewalMethod}/><Field n="responsibleParty" l="Responsible party" v={website?.responsibleParty}/><label className="full">Notes<textarea name="notes" defaultValue={website?.notes??""} rows={4}/></label><button className="full">{website?"Save changes":"Add website"}</button></form>}
-function Field({n,l,v,type="text",req=false}:{n:string;l:string;v?:string|number|null;type?:string;req?:boolean}){return <label>{l}<input name={n} type={type} defaultValue={v??""} required={req}/></label>}function Check({n,l,v}:{n:string;l:string;v:boolean}){return <label><span>{l}</span><input name={n} type="checkbox" defaultChecked={v}/></label>}
+export function WebsiteForm({website,csrf,action}:{website?:Website;csrf:string;action:(form:FormData)=>void|Promise<void>}){
+  return <form action={action} className="grid panel">
+    <input type="hidden" name="csrf" value={csrf}/>
+    <Field n="clientName" l="Client name" v={website?.clientName} req/>
+    <Field n="publicUrl" l="Website URL" v={website?.publicUrl??""} placeholder="example.com or https://example.com" req/>
+    <Field n="websiteName" l="Website name (optional)" v={website?.websiteName} placeholder="Inferred from the URL if left blank"/>
+    <Check n="usesCloudflare" l="Uses Cloudflare" v={website?.usesCloudflare??false}/>
+    <Field n="alertRecipients" l="Alert emails (optional, comma-separated)" v={website?.alertRecipients.join(", ")}/>
+    <p className="full muted">Hostname, HTTPS port, monitoring checks, timeouts, and alert thresholds are configured automatically.</p>
+    <details className="full panel">
+      <summary><strong>Advanced monitoring options</strong></summary>
+      <div className="grid">
+        <Check n="enabled" l="Monitoring enabled" v={website?.enabled??true}/>
+        <Check n="checkPublicCertificate" l="Check public certificate" v={website?.checkPublicCertificate??true}/>
+        <Check n="checkHttp" l="Check HTTP availability" v={website?.checkHttp??true}/>
+        <Check n="checkOriginCertificate" l="Check origin certificate" v={website?.checkOriginCertificate??false}/>
+        <Field n="originConnectHost" l="Origin connection host or IP" v={website?.originConnectHost}/>
+        <Field n="originSniHostname" l="Origin SNI hostname (defaults to public hostname)" v={website?.originSniHostname}/>
+        <Field n="port" l="TLS port" type="number" v={website?.port??443}/>
+        <Field n="tlsTimeoutMs" l="TLS timeout (ms)" type="number" v={website?.tlsTimeoutMs??10000}/>
+        <Field n="httpTimeoutMs" l="HTTP timeout (ms)" type="number" v={website?.httpTimeoutMs??15000}/>
+        <Field n="alertThresholds" l="Alert thresholds" v={website?.alertThresholds.join(", ")??"30,14,7,3,1,0"}/>
+        <Field n="hostingProvider" l="Hosting provider" v={website?.hostingProvider}/>
+        <Field n="renewalMethod" l="Renewal method" v={website?.renewalMethod}/>
+        <Field n="responsibleParty" l="Responsible party" v={website?.responsibleParty}/>
+        <label className="full">Notes<textarea name="notes" defaultValue={website?.notes??""} rows={4}/></label>
+      </div>
+    </details>
+    <button className="full">{website?"Save changes":"Add and monitor website"}</button>
+  </form>
+}
+function Field({n,l,v,type="text",req=false,placeholder}:{n:string;l:string;v?:string|number|null;type?:string;req?:boolean;placeholder?:string}){return <label>{l}<input name={n} type={type} defaultValue={v??""} required={req} placeholder={placeholder}/></label>}function Check({n,l,v}:{n:string;l:string;v:boolean}){return <label><span>{l}</span><input name={n} type="checkbox" defaultChecked={v}/></label>}
