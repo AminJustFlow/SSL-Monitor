@@ -53,6 +53,26 @@ Set SMTP variables and use Settings → Send test notification. Passwords remain
 
 A normal check of a Cloudflare-proxied domain sees Cloudflare's edge certificate—not necessarily the origin server certificate. To inspect the origin, enable origin checking, set the origin IP/hostname as **Origin connection host**, and the public website hostname as **Origin SNI hostname**. The checker connects to the former while sending the latter as SNI. Some origins accept traffic only from Cloudflare IP ranges, making direct origin monitoring impossible without network allowlisting.
 
+Public/edge and origin results are stored as independent `CertificateCheck` rows. Each row preserves the certificate's exact UTC `validFrom` and `expiresAt` timestamps, full-days-remaining using floor rounding, exact remaining milliseconds, resolved peer IP, TCP destination and port, SNI hostname, hostname validation, chain authorization, and fingerprint. The details page never substitutes one certificate for the other and clearly marks an unconfigured or unchecked origin.
+
+For an origin behind a proxy/CDN, configure:
+
+- **Connection type**: Cloudflare or another CDN.
+- **Enable origin certificate monitoring**.
+- **Origin connection host or IP**: the real origin destination; this is never guessed from public DNS.
+- **Origin TLS port**: normally 443 and restricted by `ALLOWED_TLS_PORTS`.
+- **Origin SNI hostname**: normally the public hostname.
+
+Use **Test origin connection** before saving. It performs a real TLS handshake to the origin destination using the separate SNI hostname and reports the returned certificate without changing DNS or Cloudflare settings. Private origin ranges remain blocked unless `ALLOW_PRIVATE_ORIGIN_HOSTS=true` is intentionally set. When edge and origin expirations differ, the UI identifies which expires first and the alert deduplication scope includes both fingerprints.
+
+After upgrading an existing installation, apply the additive backward-compatible migration before restarting:
+
+```bash
+npm run db:migrate
+npm run build
+sudo systemctl restart ssl-monitor
+```
+
 ## Tests and quality
 
 ```bash

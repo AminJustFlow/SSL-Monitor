@@ -1,0 +1,18 @@
+CREATE TYPE "ConnectionType" AS ENUM ('DIRECT', 'CLOUDFLARE', 'CDN', 'UNKNOWN');
+
+ALTER TABLE "Website"
+  ADD COLUMN "connectionType" "ConnectionType" NOT NULL DEFAULT 'UNKNOWN',
+  ADD COLUMN "originPort" INTEGER NOT NULL DEFAULT 443,
+  ADD COLUMN "edgeWarningDays" INTEGER NOT NULL DEFAULT 30,
+  ADD COLUMN "edgeCriticalDays" INTEGER NOT NULL DEFAULT 7,
+  ADD COLUMN "originWarningDays" INTEGER NOT NULL DEFAULT 30,
+  ADD COLUMN "originCriticalDays" INTEGER NOT NULL DEFAULT 7;
+
+UPDATE "Website" SET "connectionType" = 'CLOUDFLARE' WHERE "usesCloudflare" = true;
+
+ALTER TABLE "CertificateCheck"
+  ADD COLUMN "remainingMs" BIGINT,
+  ADD COLUMN "connectPort" INTEGER NOT NULL DEFAULT 443,
+  ADD COLUMN "resolvedIp" TEXT,
+  ADD COLUMN "hostnameValid" BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN "chainValid" BOOLEAN NOT NULL DEFAULT false;

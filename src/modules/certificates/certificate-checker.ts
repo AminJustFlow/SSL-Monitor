@@ -3,7 +3,11 @@ import { assertPublicHost } from "@/lib/security/network";
 import { statusForCertificate } from "./certificate-evaluator";
 import type { CertificateResult } from "./certificate-types";
 
-export async function checkCertificate(opts: { connectHost: string; servername: string; port?: number; timeoutMs?: number; allowPrivate?: boolean }): Promise<CertificateResult> {
+export function tlsConnectionOptions(opts:{connectHost:string;servername:string;port?:number}){
+  return {host:opts.connectHost,port:opts.port??443,servername:opts.servername,rejectUnauthorized:false as const};
+}
+
+export async function checkCertificate(opts: { connectHost: string; servername: string; port?: number; timeoutMs?: number; allowPrivate?: boolean; warningDays?:number; criticalDays?:number }): Promise<CertificateResult> {
   const started = Date.now(); const port = opts.port ?? 443;
   const base = { connectHost: opts.connectHost, sniHostname: opts.servername, subjectAlternativeNames: [] as string[] };
   try {
@@ -11,21 +15,21 @@ export async function checkCertificate(opts: { connectHost: string; servername: 
     return await new Promise(resolve => {
       let settled = false;
       const finish = (result: CertificateResult, socket?: tls.TLSSocket) => { if (settled) return; settled = true; socket?.destroy(); resolve(result); };
-      const socket = tls.connect({ host: opts.connectHost, port, servername: opts.servername, rejectUnauthorized: false }, () => {
+      const socket = tls.connect(tlsConnectionOptions({...opts,port}), () => {
         const cert = socket.getPeerCertificate(true) as PeerCertificate;
         const present = Boolean(cert?.raw);
         const validFrom = cert?.valid_from ? new Date(cert.valid_from) : undefined;
         const expiresAt = cert?.valid_to ? new Date(cert.valid_to) : undefined;
         const identityError = present ? tls.checkServerIdentity(opts.servername, cert) : new Error("Missing certificate");
-        const evaluated = statusForCertificate({ certificatePresent: present, connected: true, authorized: socket.authorized, hostnameMatches: !identityError, validFrom, expiresAt });
+        const evaluated = statusForCertificate({ certificatePresent: present, connected: true, authorized: socket.authorized, hostnameMatches: !identityError, validFrom, expiresAt, warningDays:opts.warningDays, criticalDays:opts.criticalDays });
         finish({
           ...base, success: evaluated.status !== "UNAVAILABLE", certificatePresent: present, authorized: socket.authorized,
           authorizationError: [socket.authorizationError, identityError?.message].filter(Boolean).join("; ") || undefined,
-          hostnameMatches: !identityError, validFrom, expiresAt, daysRemaining: evaluated.daysRemaining,
+          hostnameMatches: !identityError, validFrom, expiresAt, daysRemaining: evaluated.daysRemaining, remainingMs: evaluated.remainingMs,
           issuer: cert?.issuer as Record<string,string>, subject: cert?.subject as Record<string,string>,
           subjectAlternativeNames: cert?.subjectaltname?.split(",").map(x => x.trim()) ?? [],
           fingerprint: cert?.fingerprint256 || cert?.fingerprint, serialNumber: cert?.serialNumber,
-          protocol: socket.getProtocol() ?? undefined, cipher: socket.getCipher()?.name,
+          protocol: socket.getProtocol() ?? undefined, cipher: socket.getCipher()?.name, resolvedIp: socket.remoteAddress,
           durationMs: Date.now() - started, status: evaluated.status
         }, socket);
       });

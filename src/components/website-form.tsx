@@ -1,4 +1,5 @@
 import type { Website } from "@prisma/client";
+import { OriginTestButton } from "@/components/origin-test-button";
 export function WebsiteForm({website,csrf,action}:{website?:Website;csrf:string;action:(form:FormData)=>void|Promise<void>}){
   return <form action={action} className="grid panel">
     <input type="hidden" name="csrf" value={csrf}/>
@@ -6,6 +7,7 @@ export function WebsiteForm({website,csrf,action}:{website?:Website;csrf:string;
     <Field n="publicUrl" l="Website URL" v={website?.publicUrl??""} placeholder="example.com or https://example.com" req/>
     <Field n="websiteName" l="Website name (optional)" v={website?.websiteName} placeholder="Inferred from the URL if left blank"/>
     <Check n="usesCloudflare" l="Uses Cloudflare" v={website?.usesCloudflare??false}/>
+    <label>Connection type<select name="connectionType" defaultValue={website?.connectionType??"UNKNOWN"}><option value="UNKNOWN">Unknown</option><option value="DIRECT">Direct</option><option value="CLOUDFLARE">Cloudflare</option><option value="CDN">Other CDN</option></select></label>
     <Field n="alertRecipients" l="Alert emails (optional, comma-separated)" v={website?.alertRecipients.join(", ")}/>
     <p className="full muted">Hostname, HTTPS port, monitoring checks, timeouts, and alert thresholds are configured automatically.</p>
     <details className="full panel">
@@ -17,6 +19,12 @@ export function WebsiteForm({website,csrf,action}:{website?:Website;csrf:string;
         <Check n="checkOriginCertificate" l="Check origin certificate" v={website?.checkOriginCertificate??false}/>
         <Field n="originConnectHost" l="Origin connection host or IP" v={website?.originConnectHost}/>
         <Field n="originSniHostname" l="Origin SNI hostname (defaults to public hostname)" v={website?.originSniHostname}/>
+        <Field n="originPort" l="Origin TLS port" type="number" v={website?.originPort??443}/>
+        <OriginTestButton csrf={csrf}/>
+        <Field n="edgeWarningDays" l="Edge warning threshold (days)" type="number" v={website?.edgeWarningDays??30}/>
+        <Field n="edgeCriticalDays" l="Edge critical threshold (days)" type="number" v={website?.edgeCriticalDays??7}/>
+        <Field n="originWarningDays" l="Origin warning threshold (days)" type="number" v={website?.originWarningDays??30}/>
+        <Field n="originCriticalDays" l="Origin critical threshold (days)" type="number" v={website?.originCriticalDays??7}/>
         <Field n="port" l="TLS port" type="number" v={website?.port??443}/>
         <Field n="tlsTimeoutMs" l="TLS timeout (ms)" type="number" v={website?.tlsTimeoutMs??10000}/>
         <Field n="httpTimeoutMs" l="HTTP timeout (ms)" type="number" v={website?.httpTimeoutMs??15000}/>

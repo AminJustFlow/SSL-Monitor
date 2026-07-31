@@ -46,6 +46,12 @@ enum TriggerType {
   SCHEDULED
   MANUAL
 }
+enum ConnectionType {
+  DIRECT
+  CLOUDFLARE
+  CDN
+  UNKNOWN
+}
 
 model User {
   id String @id @default(cuid())
@@ -70,9 +76,15 @@ model Website {
   checkPublicCertificate Boolean @default(true)
   checkHttp Boolean @default(true)
   usesCloudflare Boolean @default(false)
+  connectionType ConnectionType @default(UNKNOWN)
   checkOriginCertificate Boolean @default(false)
   originConnectHost String?
   originSniHostname String?
+  originPort Int @default(443)
+  edgeWarningDays Int @default(30)
+  edgeCriticalDays Int @default(7)
+  originWarningDays Int @default(30)
+  originCriticalDays Int @default(7)
   tlsTimeoutMs Int @default(10000)
   httpTimeoutMs Int @default(15000)
   hostingProvider String?
@@ -106,6 +118,7 @@ model CertificateCheck {
   validFrom DateTime?
   expiresAt DateTime?
   daysRemaining Int?
+  remainingMs BigInt?
   issuer Json?
   subject Json?
   subjectAlternativeNames String[]
@@ -114,7 +127,11 @@ model CertificateCheck {
   protocol String?
   cipher String?
   connectHost String
+  connectPort Int @default(443)
+  resolvedIp String?
   sniHostname String
+  hostnameValid Boolean @default(false)
+  chainValid Boolean @default(false)
   durationMs Int
   status CheckStatus
   errorCode String?
