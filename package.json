@@ -14,7 +14,9 @@
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "monitor:all": "tsx --env-file=.env src/cli/monitor-all.ts",
-    "monitor:website": "tsx --env-file=.env src/cli/monitor-website.ts"
+    "monitor:website": "tsx --env-file=.env src/cli/monitor-website.ts",
+    "scheduler": "tsx --env-file-if-exists=.env src/cli/scheduler.ts",
+    "scheduler:health": "tsx --env-file-if-exists=.env src/cli/scheduler-health.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.12.0",

@@ -4,7 +4,7 @@ A production-oriented internal dashboard for monitoring public and optional orig
 
 ## Features and architecture
 
-Next.js App Router renders the authenticated admin UI and server actions. PostgreSQL and Prisma store users, sites, checks, alerts, and job runs. Small independent modules perform native Node TLS inspection, HTTP checks, status calculation, alert evaluation, and SMTP delivery. A separate CLI performs scheduled checks with bounded concurrency and a PostgreSQL advisory lock.
+Next.js App Router renders the authenticated admin UI and server actions. PostgreSQL and Prisma store users, sites, checks, alerts, and job runs. Small independent modules perform native Node TLS inspection, HTTP checks, status calculation, alert evaluation, and email delivery. A dedicated Docker scheduler performs daily checks with bounded concurrency, retries, catch-up after downtime, persistent alert delivery, and overlap protection.
 
 Key features include Argon2 password hashing, signed HttpOnly sessions, CSRF tokens, login throttling, SSRF/DNS protections, approved TLS ports, public and Cloudflare-origin checks, redirect validation, pagination, alert deduplication, structured logs, Docker, PM2, Nginx, cron, and a public non-sensitive health endpoint.
 
@@ -41,17 +41,17 @@ npm run monitor:website -- --id WEBSITE_ID
 
 The all-sites command fails nonzero only for job-level failures. Per-site failures produce a partial/failed run record without aborting other sites. A PostgreSQL advisory lock prevents overlap.
 
-For daily execution, copy `docker/ssl-monitor.cron`, adjust its path/timezone, and install it with `crontab`. The sample runs at 07:00. Container deployments may run the CLI from the built application image or a host checkout with the same environment.
+Docker Compose starts the `scheduler` service automatically. By default it runs at 07:00 in `MONITORING_TIMEZONE`, catches up when restarted later the same day, and retries partial or failed runs after 15 and 60 minutes. `DAILY_MONITORING_ENABLED=false` disables daily checks while preserving the scheduler heartbeat and alert delivery queue. The cron sample is retained only for legacy non-Docker deployments.
 
 History retention is configured but should be enforced by an operations cleanup command or database maintenance policy in this MVP.
 
 ## SMTP
 
-Set SMTP variables and use Settings → Send test notification. Passwords remain environment-only and are neither returned nor logged. Threshold keys contain the certificate fingerprint, so renewal resets threshold warnings. Unique database keys suppress repeated threshold and recovery notifications.
+Set Resend or SMTP variables and use Settings → Send test notification. Passwords remain environment-only and are neither returned nor logged. Failed deliveries are persisted and retried after 5 minutes, 30 minutes, 2 hours, and 6 hours. Threshold alerts are sent once per certificate and threshold; unresolved expired, invalid, or unavailable states may remind once per day. A later expiration paired with a new fingerprint produces a renewal-confirmed alert.
 
 ## Cloudflare certificates
 
-A normal check of a Cloudflare-proxied domain sees Cloudflare's edge certificate—not necessarily the origin server certificate. To inspect the origin, enable origin checking, set the origin IP/hostname as **Origin connection host**, and the public website hostname as **Origin SNI hostname**. The checker connects to the former while sending the latter as SNI. Some origins accept traffic only from Cloudflare IP ranges, making direct origin monitoring impossible without network allowlisting.
+A normal check of a Cloudflare-proxied domain sees Cloudflare's managed edge certificate—not necessarily the origin server certificate. To inspect the actionable origin certificate, enable origin checking, set the origin IP/hostname as **Origin connection host**, and the public website hostname as **Origin SNI hostname**. The checker connects to the former while sending the latter as SNI. It trusts both public certificate authorities and the official Cloudflare Origin CA RSA/ECC roots while continuing to validate the hostname and validity period.
 
 Public/edge and origin results are stored as independent `CertificateCheck` rows. Each row preserves the certificate's exact UTC `validFrom` and `expiresAt` timestamps, full-days-remaining using floor rounding, exact remaining milliseconds, resolved peer IP, TCP destination and port, SNI hostname, hostname validation, chain authorization, and fingerprint. The details page never substitutes one certificate for the other and clearly marks an unconfigured or unchecked origin.
 
@@ -63,7 +63,7 @@ For an origin behind a proxy/CDN, configure:
 - **Origin TLS port**: normally 443 and restricted by `ALLOWED_TLS_PORTS`.
 - **Origin SNI hostname**: normally the public hostname.
 
-Use **Test origin connection** before saving. It performs a real TLS handshake to the origin destination using the separate SNI hostname and reports the returned certificate without changing DNS or Cloudflare settings. Private origin ranges remain blocked unless `ALLOW_PRIVATE_ORIGIN_HOSTS=true` is intentionally set. When edge and origin expirations differ, the UI identifies which expires first and the alert deduplication scope includes both fingerprints.
+Use **Test origin connection** before saving. It performs a real TLS handshake to the origin destination using the separate SNI hostname and reports the returned certificate without changing DNS or Cloudflare settings. Private origin ranges remain blocked unless `ALLOW_PRIVATE_ORIGIN_HOSTS=true` is intentionally set. Different edge and origin expirations are informational and expected. For proxied sites, expiry warnings and renewal confirmation use the origin; the edge still alerts if it becomes invalid, unavailable, or expired.
 
 After upgrading an existing installation, apply the additive backward-compatible migration before restarting:
 
@@ -97,6 +97,7 @@ docker compose run --rm app npx prisma migrate deploy
 docker compose run --rm app npx tsx prisma/seed.ts
 docker compose up -d
 curl http://localhost:3000/api/health
+docker compose ps scheduler
 ```
 
 Back up with `docker compose exec -T db pg_dump -U sslmonitor -Fc sslmonitor > sslmonitor.dump`. Restore into an empty database with `pg_restore -U sslmonitor -d sslmonitor --clean --if-exists sslmonitor.dump`.
@@ -116,7 +117,8 @@ For non-Docker operation, install Node/PostgreSQL, run install/build/migrations/
 - TLS `BLOCKED_OR_DNS`: confirm DNS and SSRF policy; do not weaken public checks.
 - Origin unavailable: allow monitor traffic at the origin or disable direct origin checking.
 - No mail: verify Settings reports SMTP configured and inspect structured logs without exposing credentials.
-- Cron does not run: use absolute paths, ensure the environment is loaded, and test `npm run monitor:all` as the cron user.
+- Scheduler is stale: inspect `docker compose logs scheduler`, verify migrations and database connectivity, then check `/api/health` for heartbeat and run freshness.
+- Failed email deliveries: confirm the provider configuration and default recipients; the dashboard reports alerts that exhausted all five attempts.
 
 ## Security and limitations
 

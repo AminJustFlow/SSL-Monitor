@@ -161,21 +161,27 @@ model HttpCheck {
 
 model AlertEvent {
   id String @id @default(cuid())
-  websiteId String
-  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  websiteId String?
+  website Website? @relation(fields: [websiteId], references: [id], onDelete: Cascade)
   certificateCheckId String?
   certificateCheck CertificateCheck? @relation(fields: [certificateCheckId], references: [id], onDelete: SetNull)
   alertType String
   threshold Int?
   recipient String
   subject String
+  textBody String @default("")
+  htmlBody String @default("")
   deliveryStatus AlertDeliveryStatus @default(PENDING)
   providerMessageId String?
   errorMessage String?
+  attemptCount Int @default(0)
+  lastAttemptAt DateTime?
+  nextAttemptAt DateTime? @default(now())
   dedupKey String @unique
   createdAt DateTime @default(now())
   sentAt DateTime?
   @@index([websiteId, createdAt(sort: Desc)])
+  @@index([deliveryStatus, nextAttemptAt])
 }
 
 model MonitoringRun {
@@ -189,6 +195,17 @@ model MonitoringRun {
   alertsSent Int @default(0)
   errorMessage String?
   triggerType TriggerType
+  scheduleDate String?
+  attempt Int @default(1)
   @@index([startedAt(sort: Desc)])
   @@index([status])
+  @@index([scheduleDate, attempt])
+}
+
+model SchedulerState {
+  id String @id @default("singleton")
+  heartbeatAt DateTime
+  lastScheduledDate String?
+  lastError String?
+  updatedAt DateTime @updatedAt
 }

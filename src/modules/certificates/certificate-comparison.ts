@@ -5,3 +5,8 @@ export function compareCertificates(edge:ComparableCertificate|undefined,originE
   const earliestType=edge?.expiresAt&&origin?.expiresAt?(origin.expiresAt<edge.expiresAt?"ORIGIN":"PUBLIC"):origin?.expiresAt?"ORIGIN":edge?.expiresAt?"PUBLIC":undefined;
   return {edgeChecked,originChecked,originStatus:originEnabled?(originChecked?"CHECKED":"UNKNOWN"):"NOT_CONFIGURED",mismatch,earliestType};
 }
+
+export function certificateChangeType(previous:{fingerprint?:string|null;expiresAt?:Date|null}|undefined,current:{fingerprint?:string;expiresAt?:Date}|undefined){
+  if(!previous?.fingerprint||!current?.fingerprint||previous.fingerprint===current.fingerprint)return undefined;
+  return previous.expiresAt&&current.expiresAt&&current.expiresAt>previous.expiresAt?"CERTIFICATE_RENEWED" as const:"CERTIFICATE_CHANGED" as const;
+}

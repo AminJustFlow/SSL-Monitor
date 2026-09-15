@@ -2,12 +2,28 @@ import tls, { type PeerCertificate } from "node:tls";
 import { assertPublicHost } from "@/lib/security/network";
 import { statusForCertificate } from "./certificate-evaluator";
 import type { CertificateResult } from "./certificate-types";
+import { CLOUDFLARE_ORIGIN_CA_ROOTS } from "./cloudflare-roots";
 
-export function tlsConnectionOptions(opts:{connectHost:string;servername:string;port?:number}){
-  return {host:opts.connectHost,port:opts.port??443,servername:opts.servername,rejectUnauthorized:false as const};
+export function tlsConnectionOptions(opts:{connectHost:string;servername:string;port?:number;trustCloudflareOrigin?:boolean}){
+  const base={host:opts.connectHost,port:opts.port??443,servername:opts.servername,rejectUnauthorized:false as const};
+  return opts.trustCloudflareOrigin?{...base,ca:[...tls.rootCertificates,...CLOUDFLARE_ORIGIN_CA_ROOTS]}:base;
 }
 
-export async function checkCertificate(opts: { connectHost: string; servername: string; port?: number; timeoutMs?: number; allowPrivate?: boolean; warningDays?:number; criticalDays?:number }): Promise<CertificateResult> {
+export async function checkCertificate(opts: { connectHost: string; servername: string; port?: number; timeoutMs?: number; allowPrivate?: boolean; warningDays?:number; criticalDays?:number; trustCloudflareOrigin?:boolean; attempts?:number }): Promise<CertificateResult> {
+  const attempts=opts.attempts??3;
+  let result=await checkCertificateOnce(opts);
+  for(let attempt=1;attempt<attempts&&isTransient(result);attempt++){
+    await new Promise(resolve=>setTimeout(resolve,attempt===1?1_000:5_000));
+    result=await checkCertificateOnce(opts);
+  }
+  return result;
+}
+
+export function isTransient(result:CertificateResult){
+  return result.status==="UNAVAILABLE"&&result.errorCode!=="BLOCKED_HOST";
+}
+
+async function checkCertificateOnce(opts: { connectHost: string; servername: string; port?: number; timeoutMs?: number; allowPrivate?: boolean; warningDays?:number; criticalDays?:number; trustCloudflareOrigin?:boolean }): Promise<CertificateResult> {
   const started = Date.now(); const port = opts.port ?? 443;
   const base = { connectHost: opts.connectHost, sniHostname: opts.servername, subjectAlternativeNames: [] as string[] };
   try {
@@ -37,6 +53,8 @@ export async function checkCertificate(opts: { connectHost: string; servername: 
       socket.once("error", err => finish({ ...base, success: false, certificatePresent: false, authorized: false, hostnameMatches: false, durationMs: Date.now()-started, status: "UNAVAILABLE", errorCode: (err as NodeJS.ErrnoException).code, errorMessage: err.message }, socket));
     });
   } catch (error) {
-    return { ...base, success: false, certificatePresent: false, authorized: false, hostnameMatches: false, durationMs: Date.now()-started, status: "UNAVAILABLE", errorCode: "BLOCKED_OR_DNS", errorMessage: error instanceof Error ? error.message : "Connection rejected" };
+    const message=error instanceof Error ? error.message : "Connection rejected";
+    const blocked=message.startsWith("Blocked host")||message.includes("blocked address");
+    return { ...base, success: false, certificatePresent: false, authorized: false, hostnameMatches: false, durationMs: Date.now()-started, status: "UNAVAILABLE", errorCode: blocked?"BLOCKED_HOST":"DNS_ERROR", errorMessage: message };
   }
 }

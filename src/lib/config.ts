@@ -22,7 +22,11 @@ const schema = z.object({
   HISTORY_RETENTION_DAYS: z.coerce.number().int().min(1).default(365),
   ALLOW_PRIVATE_ORIGIN_HOSTS: z.string().default("false").transform(v => v === "true"),
   ALLOWED_TLS_PORTS: z.string().default("443,8443"),
-  DAILY_MONITORING_ENABLED: z.string().default("true").transform(v => v === "true")
+  DAILY_MONITORING_ENABLED: z.string().default("true").transform(v => v === "true"),
+  DAILY_MONITORING_TIME: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).default("07:00"),
+  SCHEDULER_POLL_MS: z.coerce.number().int().min(10_000).max(300_000).default(60_000),
+  SCHEDULER_STALE_MINUTES: z.coerce.number().int().min(2).max(60).default(5),
+  MONITORING_STALE_HOURS: z.coerce.number().int().min(24).max(168).default(26)
 });
 
 export type Config = z.infer<typeof schema>;
